@@ -8,7 +8,13 @@ from scraper_core import WebScraper
 class ScraperApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Web Scraper")
+        self.root.title("TippmixPro scraper API by B3RC1")
+        
+        # Set window icon if icon.ico exists
+        try:
+            self.root.iconbitmap("icon.ico")
+        except:
+            pass  # Icon file doesn't exist, use default
         self.root.geometry("800x600")
         
         # Initialize scraper with Selenium enabled by default and optimized timing
