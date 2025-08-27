@@ -28,7 +28,8 @@ class ScraperApp:
                 "button_bg": "#e1e1e1",
                 "entry_bg": "#ffffff",
                 "text_bg": "#ffffff",
-                "text_fg": "#000000"
+                "text_fg": "#000000",
+                "frame_label_bg": "#f0f0f0"
             },
             "dark": {
                 "bg": "#2b2b2b",
@@ -36,7 +37,8 @@ class ScraperApp:
                 "button_bg": "#404040",
                 "entry_bg": "#3c3c3c",
                 "text_bg": "#3c3c3c",
-                "text_fg": "#ffffff"
+                "text_fg": "#ffffff",
+                "frame_label_bg": "#2b2b2b"
             }
         }
         
@@ -60,7 +62,6 @@ class ScraperApp:
                 self.selectors_text.insert(1.0, settings.get('selectors', ''))
                 self.current_theme = settings.get('theme', 'light')
                 self.dynamic_wait_var.set(settings.get('dynamic_wait', '2'))
-                self.refresh_content_var.set(settings.get('refresh_content', False))
         except FileNotFoundError:
             pass
     
@@ -72,8 +73,7 @@ class ScraperApp:
             'output_file': self.output_file_var.get(),
             'selectors': self.selectors_text.get(1.0, tk.END).strip(),
             'theme': self.current_theme,
-            'dynamic_wait': self.dynamic_wait_var.get(),
-            'refresh_content': self.refresh_content_var.get()
+            'dynamic_wait': self.dynamic_wait_var.get()
         }
         with open(self.settings_file, 'w') as f:
             json.dump(settings, f, indent=2)
@@ -105,32 +105,21 @@ class ScraperApp:
         self.interval_entry = ttk.Entry(main_frame, textvariable=self.interval_var, width=10)
         self.interval_entry.grid(row=1, column=1, sticky=tk.W, pady=5, padx=(5, 0))
         
-        # Timing configuration frame
-        timing_frame = ttk.LabelFrame(main_frame, text="Timing Configuration", padding="5")
-        timing_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-        timing_frame.columnconfigure(1, weight=1)
-        timing_frame.columnconfigure(2, weight=1)
-        
-
+        # Timing configuration section
+        ttk.Label(main_frame, text="Timing Configuration", font=("TkDefaultFont", 10, "bold")).grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
         
         # Dynamic wait timeout
-        ttk.Label(timing_frame, text="Dynamic Wait Timeout (seconds):").grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Label(main_frame, text="Dynamic Wait Timeout (seconds):").grid(row=3, column=0, sticky=tk.W, pady=2)
         self.dynamic_wait_var = tk.StringVar(value="2")
-        self.dynamic_wait_entry = ttk.Entry(timing_frame, textvariable=self.dynamic_wait_var, width=8)
-        self.dynamic_wait_entry.grid(row=0, column=1, sticky=tk.W, pady=2, padx=(5, 10))
-        
-        # Refresh content option
-        self.refresh_content_var = tk.BooleanVar(value=False)
-        self.refresh_content_check = ttk.Checkbutton(timing_frame, text="Refresh page content at each interval", 
-                                                   variable=self.refresh_content_var)
-        self.refresh_content_check.grid(row=0, column=2, sticky=tk.W, pady=2, padx=(10, 0))
+        self.dynamic_wait_entry = ttk.Entry(main_frame, textvariable=self.dynamic_wait_var, width=8)
+        self.dynamic_wait_entry.grid(row=3, column=1, sticky=tk.W, pady=2, padx=(5, 0))
         
 
         
         # Output file
-        ttk.Label(main_frame, text="Output JSON File:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="Output JSON File:").grid(row=4, column=0, sticky=tk.W, pady=5)
         output_frame = ttk.Frame(main_frame)
-        output_frame.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        output_frame.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         output_frame.columnconfigure(0, weight=1)
         
         self.output_entry = ttk.Entry(output_frame, textvariable=self.output_file_var)
@@ -139,16 +128,18 @@ class ScraperApp:
         ttk.Button(output_frame, text="Browse", command=self.browse_file).grid(row=0, column=1)
         
         # Theme selector
-        ttk.Label(main_frame, text="Theme:").grid(row=4, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="Theme:").grid(row=5, column=0, sticky=tk.W, pady=5)
         self.theme_combo = ttk.Combobox(main_frame, textvariable=self.theme_var, 
                                        values=["light", "dark"], state="readonly", width=10)
-        self.theme_combo.grid(row=4, column=1, sticky=tk.W, pady=5, padx=(5, 0))
+        self.theme_combo.grid(row=5, column=1, sticky=tk.W, pady=5, padx=(5, 0))
         self.theme_combo.bind('<<ComboboxSelected>>', self.on_theme_change)
         
         # CSS Selectors
-        ttk.Label(main_frame, text="CSS Selectors (one per line):").grid(row=5, column=0, sticky=tk.W, pady=5)
-        selectors_frame = ttk.LabelFrame(main_frame, text="Selectors", padding="5")
-        selectors_frame.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        ttk.Label(main_frame, text="CSS Selectors (one per line):").grid(row=6, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="Selectors", font=("TkDefaultFont", 10, "bold")).grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
+        
+        selectors_frame = ttk.Frame(main_frame)
+        selectors_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
         selectors_frame.columnconfigure(0, weight=1)
         selectors_frame.rowconfigure(0, weight=1)
         
@@ -157,7 +148,7 @@ class ScraperApp:
         
         # Buttons frame
         buttons_frame = ttk.Frame(main_frame)
-        buttons_frame.grid(row=6, column=0, columnspan=2, pady=10)
+        buttons_frame.grid(row=9, column=0, columnspan=2, pady=10)
         
         self.start_button = ttk.Button(buttons_frame, text="Start Scraping", command=self.start_scraping)
         self.start_button.pack(side=tk.LEFT, padx=5)
@@ -168,8 +159,10 @@ class ScraperApp:
         ttk.Button(buttons_frame, text="Save Settings", command=self.save_settings).pack(side=tk.LEFT, padx=5)
         
         # Log area
-        log_frame = ttk.LabelFrame(main_frame, text="Log", padding="5")
-        log_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+        ttk.Label(main_frame, text="Log", font=("TkDefaultFont", 10, "bold")).grid(row=10, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
+        
+        log_frame = ttk.Frame(main_frame)
+        log_frame.grid(row=11, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
         log_frame.columnconfigure(0, weight=1)
         log_frame.rowconfigure(0, weight=1)
         
@@ -182,7 +175,7 @@ class ScraperApp:
         self.log_text.configure(yscrollcommand=log_scrollbar.set)
         
         # Configure main frame row weights
-        main_frame.rowconfigure(7, weight=1)
+        main_frame.rowconfigure(11, weight=1)
     
     def on_theme_change(self, event=None):
         """Handle theme change"""
@@ -214,11 +207,11 @@ class ScraperApp:
             style.configure('TFrame', background=theme['bg'])
             style.configure('TLabel', background=theme['bg'], foreground=theme['fg'])
             style.configure('TButton', background=theme['button_bg'])
-            style.configure('TEntry', fieldbackground=theme['entry_bg'], foreground=theme['fg'], insertcolor=theme['fg'])
-            style.configure('TCombobox', fieldbackground=theme['entry_bg'], foreground=theme['fg'], 
-                          background=theme['entry_bg'], selectbackground=theme['button_bg'], selectforeground=theme['fg'])
+            style.configure('TEntry', fieldbackground=theme['entry_bg'], foreground='#000000', insertcolor='#000000')
+            style.configure('TCombobox', fieldbackground=theme['entry_bg'], foreground='#000000', 
+                          background=theme['entry_bg'], selectbackground=theme['button_bg'], selectforeground='#000000')
             style.configure('TLabelframe', background=theme['bg'])
-            style.configure('TLabelframe.Label', background=theme['bg'], foreground=theme['fg'])
+            style.configure('TLabelframe.Label', background=theme['frame_label_bg'], foreground=theme['fg'])
             
             # Apply style to all widgets
             self._apply_style_to_widget(self.root, theme_name)
@@ -233,8 +226,10 @@ class ScraperApp:
             
             # Apply to known ttk widget types
             widget_type = str(type(widget))
-            if 'ttk.Frame' in widget_type or 'ttk.LabelFrame' in widget_type:
+            if 'ttk.Frame' in widget_type:
                 widget.configure(style='TFrame')
+            elif 'ttk.LabelFrame' in widget_type:
+                widget.configure(style='TLabelframe')
             elif 'ttk.Label' in widget_type:
                 widget.configure(style='TLabel')
             elif 'ttk.Button' in widget_type:
@@ -280,11 +275,10 @@ class ScraperApp:
         output_file = self.output_file_var.get()
         selectors = self.selectors_text.get(1.0, tk.END).strip().split('\n')
         selectors = [s.strip() for s in selectors if s.strip()]
-        refresh_content = self.refresh_content_var.get()
         
         self.scraping_thread = threading.Thread(
             target=self.scraping_worker,
-            args=(interval, output_file, selectors, refresh_content),
+            args=(interval, output_file, selectors),
             daemon=True
         )
         self.scraping_thread.start()
@@ -302,7 +296,7 @@ class ScraperApp:
         
         self.log_message("Scraping stopped")
     
-    def scraping_worker(self, interval, output_file, selectors, refresh_content):
+    def scraping_worker(self, interval, output_file, selectors):
         """Worker thread for scraping"""
         # First scrape to get initial content
         try:
@@ -318,11 +312,6 @@ class ScraperApp:
         # Continue scraping from the same page content
         while self.is_scraping:
             try:
-                # Refresh page content if requested (for sites that don't update automatically)
-                if refresh_content:
-                    self.scraper.refresh_page_content()
-                    self.log_message("Page content refreshed")
-                
                 # Scrape current page (gets fresh content from browser)
                 data = self.scraper.scrape_current_page(selectors)
                 
