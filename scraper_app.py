@@ -45,6 +45,8 @@ class ScraperApp:
         # Setup UI first, then load settings
         self.setup_ui()
         self.load_settings()
+        # Update theme combo box to reflect loaded theme
+        self.theme_var.set(self.current_theme)
         self.apply_theme(self.current_theme)
         
         # Bind closing event
