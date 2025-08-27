@@ -7,7 +7,7 @@ A Python-based web scraping application with a graphical user interface that all
 - **Graphical User Interface**: Easy-to-use tkinter-based GUI
 - **Dark/Light Mode**: Switch between dark and light themes for comfortable viewing
 - **Configurable Scraping**: Set custom CSS selectors for data extraction
-- **Keep-Alive Polling**: Opens page once and refreshes content at intervals (more efficient)
+- **Keep-Alive Polling**: Opens page once and keeps it open, capturing dynamic content updates at each interval
 - **JSON Output**: Save scraped data in structured JSON format with timestamps
 - **Settings Persistence**: Remember your configuration between app launches
 - **Dual Scraping Methods**: Support for both requests (fast) and Selenium (JavaScript-heavy pages)
@@ -47,7 +47,7 @@ python scraper_app.py
 
 **Note**: Your settings (URL, interval, output file, selectors, and theme preference) are automatically remembered when you restart the application.
 
-**How it works**: The scraper opens the page once when you start, then refreshes the content at each interval to check for changes. This is more efficient than opening/closing the page each time.
+**How it works**: The scraper opens the page once when you start, then gets fresh page content from the browser at each interval to capture dynamic updates (WebSockets, AJAX, etc.). This ensures you get the latest data without needing to refresh the entire page.
 
 ### CSS Selectors Examples
 
@@ -101,7 +101,9 @@ The application automatically saves your configuration to `scraper_settings.json
     ".content",
     "h1"
   ],
-  "theme": "light"
+  "theme": "light",
+  "dynamic_wait": "2",
+  "refresh_content": false
 }
 ```
 

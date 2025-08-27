@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import json
+import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -11,16 +12,18 @@ from selenium.webdriver.chrome.service import Service
 from selenium.common.exceptions import TimeoutException, WebDriverException
 
 class WebScraper:
-    def __init__(self, use_selenium=False, timeout=30):
+    def __init__(self, use_selenium=False, timeout=30, dynamic_wait_timeout=5):
         """
         Initialize the web scraper
         
         Args:
             use_selenium (bool): Whether to use Selenium for JavaScript-heavy pages
             timeout (int): Timeout for requests in seconds
+            dynamic_wait_timeout (int): Timeout for waiting for dynamic elements
         """
         self.use_selenium = use_selenium
         self.timeout = timeout
+        self.dynamic_wait_timeout = dynamic_wait_timeout
         self.session = requests.Session()
         self.driver = None
         
@@ -43,13 +46,18 @@ class WebScraper:
             chrome_options.add_argument("--disable-gpu")
             chrome_options.add_argument("--window-size=1920,1080")
             chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+            chrome_options.add_argument("--disable-speech-api")
+            chrome_options.add_argument("--disable-speech-synthesis-api")
+            chrome_options.add_argument("--disable-voice-transcription")
+            chrome_options.add_argument("--log-level=3")
+            chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
             
             # Try to create driver without specifying service first
             try:
                 self.driver = webdriver.Chrome(options=chrome_options)
             except WebDriverException:
                 # If that fails, try with service
-                service = Service()
+                service = Service(log_output=os.devnull)  # Redirect logs to null
                 self.driver = webdriver.Chrome(service=service, options=chrome_options)
             
             self.driver.set_page_load_timeout(self.timeout)
@@ -99,41 +107,34 @@ class WebScraper:
             raise Exception(f"Error opening page with Selenium: {e}")
     
     def refresh_page_content(self):
-        """Refresh the content of the currently open page"""
+        """Refresh the page content from the browser (for dynamic updates)"""
         if not self.is_page_open:
             raise Exception("No page is currently open")
         
-        if self.use_selenium:
-            self._refresh_with_selenium()
-        else:
-            self._refresh_with_requests()
-    
-    def _refresh_with_requests(self):
-        """Refresh page content using requests"""
-        try:
-            response = self.session.get(self.current_url, timeout=self.timeout)
-            response.raise_for_status()
-            self.current_content = response.text
-        except Exception as e:
-            raise Exception(f"Error refreshing page with requests: {e}")
-    
-    def _refresh_with_selenium(self):
-        """Refresh page content using Selenium"""
-        try:
-            self.driver.refresh()
-            time.sleep(2)  # Wait for dynamic content to load
+        if self.use_selenium and self.driver:
+            # Get fresh page source from the browser
             self.current_content = self.driver.page_source
-        except Exception as e:
-            raise Exception(f"Error refreshing page with Selenium: {e}")
+        else:
+            # For requests-based scraping, make a new request
+            try:
+                response = self.session.get(self.current_url, timeout=self.timeout)
+                response.raise_for_status()
+                self.current_content = response.text
+            except Exception as e:
+                raise Exception(f"Error refreshing page content: {e}")
     
-    def _wait_for_dynamic_elements(self, selectors, timeout=10):
+
+    
+    def _wait_for_dynamic_elements(self, selectors, timeout=None):
         """
         Wait for dynamic elements to appear on the page
         
         Args:
             selectors (list): List of CSS selectors to wait for
-            timeout (int): Maximum time to wait in seconds
+            timeout (int): Maximum time to wait in seconds (uses self.dynamic_wait_timeout if None)
         """
+        if timeout is None:
+            timeout = self.dynamic_wait_timeout
         if not self.driver:
             return
         
@@ -160,15 +161,16 @@ class WebScraper:
         if not self.is_page_open:
             raise Exception("No page is currently open")
         
-        # Refresh the page content first
-        self.refresh_page_content()
-        
-        # Wait for dynamic elements if using Selenium
-        if self.use_selenium:
-            self._wait_for_dynamic_elements(selectors)
+        # Get fresh page content from the browser to capture dynamic updates
+        if self.use_selenium and self.driver:
+            # Get current page source (includes JavaScript updates)
+            current_content = self.driver.page_source
+        else:
+            # For requests-based scraping, use the stored content
+            current_content = self.current_content
         
         # Parse the HTML content
-        soup = BeautifulSoup(self.current_content, 'html.parser')
+        soup = BeautifulSoup(current_content, 'html.parser')
         
         # Extract data for each selector
         data = {}

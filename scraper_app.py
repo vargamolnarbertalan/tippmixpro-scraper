@@ -11,8 +11,8 @@ class ScraperApp:
         self.root.title("Web Scraper")
         self.root.geometry("800x600")
         
-        # Initialize scraper with Selenium enabled by default
-        self.scraper = WebScraper(use_selenium=True)
+        # Initialize scraper with Selenium enabled by default and optimized timing
+        self.scraper = WebScraper(use_selenium=True, dynamic_wait_timeout=2)
         self.scraping_thread = None
         self.is_scraping = False
         
@@ -59,6 +59,8 @@ class ScraperApp:
                 self.selectors_text.delete(1.0, tk.END)
                 self.selectors_text.insert(1.0, settings.get('selectors', ''))
                 self.current_theme = settings.get('theme', 'light')
+                self.dynamic_wait_var.set(settings.get('dynamic_wait', '2'))
+                self.refresh_content_var.set(settings.get('refresh_content', False))
         except FileNotFoundError:
             pass
     
@@ -69,7 +71,9 @@ class ScraperApp:
             'interval': self.interval_var.get(),
             'output_file': self.output_file_var.get(),
             'selectors': self.selectors_text.get(1.0, tk.END).strip(),
-            'theme': self.current_theme
+            'theme': self.current_theme,
+            'dynamic_wait': self.dynamic_wait_var.get(),
+            'refresh_content': self.refresh_content_var.get()
         }
         with open(self.settings_file, 'w') as f:
             json.dump(settings, f, indent=2)
@@ -101,10 +105,32 @@ class ScraperApp:
         self.interval_entry = ttk.Entry(main_frame, textvariable=self.interval_var, width=10)
         self.interval_entry.grid(row=1, column=1, sticky=tk.W, pady=5, padx=(5, 0))
         
+        # Timing configuration frame
+        timing_frame = ttk.LabelFrame(main_frame, text="Timing Configuration", padding="5")
+        timing_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        timing_frame.columnconfigure(1, weight=1)
+        timing_frame.columnconfigure(2, weight=1)
+        
+
+        
+        # Dynamic wait timeout
+        ttk.Label(timing_frame, text="Dynamic Wait Timeout (seconds):").grid(row=0, column=0, sticky=tk.W, pady=2)
+        self.dynamic_wait_var = tk.StringVar(value="2")
+        self.dynamic_wait_entry = ttk.Entry(timing_frame, textvariable=self.dynamic_wait_var, width=8)
+        self.dynamic_wait_entry.grid(row=0, column=1, sticky=tk.W, pady=2, padx=(5, 10))
+        
+        # Refresh content option
+        self.refresh_content_var = tk.BooleanVar(value=False)
+        self.refresh_content_check = ttk.Checkbutton(timing_frame, text="Refresh page content at each interval", 
+                                                   variable=self.refresh_content_var)
+        self.refresh_content_check.grid(row=0, column=2, sticky=tk.W, pady=2, padx=(10, 0))
+        
+
+        
         # Output file
-        ttk.Label(main_frame, text="Output JSON File:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="Output JSON File:").grid(row=3, column=0, sticky=tk.W, pady=5)
         output_frame = ttk.Frame(main_frame)
-        output_frame.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        output_frame.grid(row=3, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         output_frame.columnconfigure(0, weight=1)
         
         self.output_entry = ttk.Entry(output_frame, textvariable=self.output_file_var)
@@ -113,16 +139,16 @@ class ScraperApp:
         ttk.Button(output_frame, text="Browse", command=self.browse_file).grid(row=0, column=1)
         
         # Theme selector
-        ttk.Label(main_frame, text="Theme:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="Theme:").grid(row=4, column=0, sticky=tk.W, pady=5)
         self.theme_combo = ttk.Combobox(main_frame, textvariable=self.theme_var, 
                                        values=["light", "dark"], state="readonly", width=10)
-        self.theme_combo.grid(row=3, column=1, sticky=tk.W, pady=5, padx=(5, 0))
+        self.theme_combo.grid(row=4, column=1, sticky=tk.W, pady=5, padx=(5, 0))
         self.theme_combo.bind('<<ComboboxSelected>>', self.on_theme_change)
         
         # CSS Selectors
-        ttk.Label(main_frame, text="CSS Selectors (one per line):").grid(row=4, column=0, sticky=tk.W, pady=5)
+        ttk.Label(main_frame, text="CSS Selectors (one per line):").grid(row=5, column=0, sticky=tk.W, pady=5)
         selectors_frame = ttk.LabelFrame(main_frame, text="Selectors", padding="5")
-        selectors_frame.grid(row=4, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
+        selectors_frame.grid(row=5, column=1, sticky=(tk.W, tk.E), pady=5, padx=(5, 0))
         selectors_frame.columnconfigure(0, weight=1)
         selectors_frame.rowconfigure(0, weight=1)
         
@@ -131,7 +157,7 @@ class ScraperApp:
         
         # Buttons frame
         buttons_frame = ttk.Frame(main_frame)
-        buttons_frame.grid(row=5, column=0, columnspan=2, pady=10)
+        buttons_frame.grid(row=6, column=0, columnspan=2, pady=10)
         
         self.start_button = ttk.Button(buttons_frame, text="Start Scraping", command=self.start_scraping)
         self.start_button.pack(side=tk.LEFT, padx=5)
@@ -143,7 +169,7 @@ class ScraperApp:
         
         # Log area
         log_frame = ttk.LabelFrame(main_frame, text="Log", padding="5")
-        log_frame.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
+        log_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=10)
         log_frame.columnconfigure(0, weight=1)
         log_frame.rowconfigure(0, weight=1)
         
@@ -156,7 +182,7 @@ class ScraperApp:
         self.log_text.configure(yscrollcommand=log_scrollbar.set)
         
         # Configure main frame row weights
-        main_frame.rowconfigure(6, weight=1)
+        main_frame.rowconfigure(7, weight=1)
     
     def on_theme_change(self, event=None):
         """Handle theme change"""
@@ -230,6 +256,13 @@ class ScraperApp:
         if not self.validate_inputs():
             return
         
+        # Update scraper timing settings
+        try:
+            dynamic_wait = float(self.dynamic_wait_var.get())
+            self.scraper.dynamic_wait_timeout = dynamic_wait
+        except ValueError:
+            self.log_message("Warning: Invalid timing values, using defaults")
+        
         # Open the page first
         try:
             self.scraper.open_page(self.url_var.get())
@@ -247,10 +280,11 @@ class ScraperApp:
         output_file = self.output_file_var.get()
         selectors = self.selectors_text.get(1.0, tk.END).strip().split('\n')
         selectors = [s.strip() for s in selectors if s.strip()]
+        refresh_content = self.refresh_content_var.get()
         
         self.scraping_thread = threading.Thread(
             target=self.scraping_worker,
-            args=(interval, output_file, selectors),
+            args=(interval, output_file, selectors, refresh_content),
             daemon=True
         )
         self.scraping_thread.start()
@@ -268,11 +302,28 @@ class ScraperApp:
         
         self.log_message("Scraping stopped")
     
-    def scraping_worker(self, interval, output_file, selectors):
+    def scraping_worker(self, interval, output_file, selectors, refresh_content):
         """Worker thread for scraping"""
+        # First scrape to get initial content
+        try:
+            data = self.scraper.scrape_current_page(selectors)
+            if data:
+                self.save_data(data, output_file)
+                self.log_message(f"Initial data scraped and saved to {output_file}")
+            else:
+                self.log_message("No data found with the specified selectors")
+        except Exception as e:
+            self.log_message(f"Error during initial scraping: {e}")
+        
+        # Continue scraping from the same page content
         while self.is_scraping:
             try:
-                # Scrape current page
+                # Refresh page content if requested (for sites that don't update automatically)
+                if refresh_content:
+                    self.scraper.refresh_page_content()
+                    self.log_message("Page content refreshed")
+                
+                # Scrape current page (gets fresh content from browser)
                 data = self.scraper.scrape_current_page(selectors)
                 
                 if data:
