@@ -3,7 +3,7 @@ from tkinter import ttk, filedialog, messagebox
 import json
 import threading
 import time
-from scraper_core import WebScraper
+from scraper_core import TippmixProScraper
 
 class ScraperApp:
     def __init__(self, root):
@@ -18,7 +18,7 @@ class ScraperApp:
         self.root.geometry("800x600")
         
         # Initialize scraper with Selenium enabled by default and optimized timing
-        self.scraper = WebScraper(use_selenium=True, dynamic_wait_timeout=2)
+        self.scraper = TippmixProScraper(use_selenium=True)
         self.scraping_thread = None
         self.is_scraping = False
         
@@ -66,10 +66,7 @@ class ScraperApp:
                 self.url_var.set(settings.get('url', ''))
                 self.interval_var.set(settings.get('interval', '30'))
                 self.output_file_var.set(settings.get('output_file', 'scraped_data.json'))
-                self.selectors_text.delete(1.0, tk.END)
-                self.selectors_text.insert(1.0, settings.get('selectors', ''))
                 self.current_theme = settings.get('theme', 'light')
-                self.dynamic_wait_var.set(settings.get('dynamic_wait', '2'))
         except FileNotFoundError:
             pass
     
@@ -79,9 +76,7 @@ class ScraperApp:
             'url': self.url_var.get(),
             'interval': self.interval_var.get(),
             'output_file': self.output_file_var.get(),
-            'selectors': self.selectors_text.get(1.0, tk.END).strip(),
             'theme': self.current_theme,
-            'dynamic_wait': self.dynamic_wait_var.get()
         }
         with open(self.settings_file, 'w') as f:
             json.dump(settings, f, indent=2)
@@ -112,18 +107,7 @@ class ScraperApp:
         ttk.Label(main_frame, text="Polling Interval (seconds):").grid(row=1, column=0, sticky=tk.W, pady=5)
         self.interval_entry = ttk.Entry(main_frame, textvariable=self.interval_var, width=10)
         self.interval_entry.grid(row=1, column=1, sticky=tk.W, pady=5, padx=(5, 0))
-        
-        # Timing configuration section
-        ttk.Label(main_frame, text="Timing Configuration", font=("TkDefaultFont", 10, "bold")).grid(row=2, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
-        
-        # Dynamic wait timeout
-        ttk.Label(main_frame, text="Dynamic Wait Timeout (seconds):").grid(row=3, column=0, sticky=tk.W, pady=2)
-        self.dynamic_wait_var = tk.StringVar(value="2")
-        self.dynamic_wait_entry = ttk.Entry(main_frame, textvariable=self.dynamic_wait_var, width=8)
-        self.dynamic_wait_entry.grid(row=3, column=1, sticky=tk.W, pady=2, padx=(5, 0))
-        
 
-        
         # Output file
         ttk.Label(main_frame, text="Output JSON File:").grid(row=4, column=0, sticky=tk.W, pady=5)
         output_frame = ttk.Frame(main_frame)
@@ -141,18 +125,6 @@ class ScraperApp:
                                        values=["light", "dark"], state="readonly", width=10)
         self.theme_combo.grid(row=5, column=1, sticky=tk.W, pady=5, padx=(5, 0))
         self.theme_combo.bind('<<ComboboxSelected>>', self.on_theme_change)
-        
-        # CSS Selectors
-        ttk.Label(main_frame, text="CSS Selectors (one per line):").grid(row=6, column=0, sticky=tk.W, pady=5)
-        ttk.Label(main_frame, text="Selectors", font=("TkDefaultFont", 10, "bold")).grid(row=7, column=0, columnspan=2, sticky=tk.W, pady=(10, 5))
-        
-        selectors_frame = ttk.Frame(main_frame)
-        selectors_frame.grid(row=8, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
-        selectors_frame.columnconfigure(0, weight=1)
-        selectors_frame.rowconfigure(0, weight=1)
-        
-        self.selectors_text = tk.Text(selectors_frame, height=6, width=50)
-        self.selectors_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Buttons frame
         buttons_frame = ttk.Frame(main_frame)
@@ -258,18 +230,18 @@ class ScraperApp:
         """Start the scraping process"""
         if not self.validate_inputs():
             return
-        
-        # Update scraper timing settings
-        try:
-            dynamic_wait = float(self.dynamic_wait_var.get())
-            self.scraper.dynamic_wait_timeout = dynamic_wait
-        except ValueError:
-            self.log_message("Warning: Invalid timing values, using defaults")
-        
         # Open the page first
         try:
-            self.scraper.open_page(self.url_var.get())
-            self.log_message("Page opened successfully")
+            original_url = self.url_var.get()
+            
+            # For TippmixPro scraper, show URL conversion
+            if isinstance(self.scraper, TippmixProScraper):
+                converted_url = self.scraper.convert_tippmixpro_url(original_url)
+                if converted_url != original_url:
+                    self.log_message(f"URL converted to: {converted_url}")
+                    self.scraper.open_page(converted_url)
+                    self.log_message("Page opened successfully!")
+            
         except Exception as e:
             self.log_message(f"Error opening page: {e}")
             return
@@ -281,12 +253,10 @@ class ScraperApp:
         
         interval = int(self.interval_var.get())
         output_file = self.output_file_var.get()
-        selectors = self.selectors_text.get(1.0, tk.END).strip().split('\n')
-        selectors = [s.strip() for s in selectors if s.strip()]
         
         self.scraping_thread = threading.Thread(
             target=self.scraping_worker,
-            args=(interval, output_file, selectors),
+            args=(interval, output_file),
             daemon=True
         )
         self.scraping_thread.start()
@@ -304,16 +274,16 @@ class ScraperApp:
         
         self.log_message("Scraping stopped")
     
-    def scraping_worker(self, interval, output_file, selectors):
+    def scraping_worker(self, interval, output_file):
         """Worker thread for scraping"""
         # First scrape to get initial content
         try:
-            data = self.scraper.scrape_current_page(selectors)
+            data = self.scraper.scrape_market_titles()
             if data:
                 self.save_data(data, output_file)
                 self.log_message(f"Initial data scraped and saved to {output_file}")
             else:
-                self.log_message("No data found with the specified selectors")
+                self.log_message("No market data found")
         except Exception as e:
             self.log_message(f"Error during initial scraping: {e}")
         
@@ -321,13 +291,13 @@ class ScraperApp:
         while self.is_scraping:
             try:
                 # Scrape current page (gets fresh content from browser)
-                data = self.scraper.scrape_current_page(selectors)
+                data = self.scraper.scrape_market_titles()
                 
                 if data:
                     self.save_data(data, output_file)
                     self.log_message(f"Data scraped and saved to {output_file}")
                 else:
-                    self.log_message("No data found with the specified selectors")
+                    self.log_message("No market data found")
                 
                 # Wait for next interval
                 time.sleep(interval)
@@ -368,11 +338,6 @@ class ScraperApp:
         
         if not self.output_file_var.get().strip():
             messagebox.showerror("Error", "Please enter an output file name")
-            return False
-        
-        selectors = self.selectors_text.get(1.0, tk.END).strip()
-        if not selectors:
-            messagebox.showerror("Error", "Please enter at least one CSS selector")
             return False
         
         return True

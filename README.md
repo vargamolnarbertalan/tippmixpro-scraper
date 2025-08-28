@@ -102,7 +102,6 @@ The application automatically saves your configuration to `scraper_settings.json
     "h1"
   ],
   "theme": "light",
-  "dynamic_wait": "2",
   "refresh_content": false
 }
 ```

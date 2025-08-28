@@ -1,7 +1,5 @@
 import requests
-from bs4 import BeautifulSoup
 import time
-import json
 import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -40,7 +38,7 @@ class WebScraper:
         """Setup Selenium WebDriver with Chrome options"""
         try:
             chrome_options = Options()
-            chrome_options.add_argument("--headless")  # Run in background
+            chrome_options.add_argument("--headless")  # Run in background - DISABLED FOR DEBUGGING
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.add_argument("--disable-gpu")
@@ -49,8 +47,17 @@ class WebScraper:
             chrome_options.add_argument("--disable-speech-api")
             chrome_options.add_argument("--disable-speech-synthesis-api")
             chrome_options.add_argument("--disable-voice-transcription")
-            chrome_options.add_argument("--log-level=3")
+            # Add these Chrome options
+            chrome_options.add_argument("--silent")
+            chrome_options.add_argument("--disable-logging")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--no-sandbox")
             chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
+            chrome_options.add_experimental_option('useAutomationExtension', False)
+
+            # And use Service with null output
+            service = Service(log_output=os.devnull)
+            self.driver = webdriver.Chrome(service=service, options=chrome_options)
             
             # Try to create driver without specifying service first
             try:
@@ -74,23 +81,19 @@ class WebScraper:
         Args:
             url (str): The URL to open
         """
-        self.current_url = url
+        # Convert URL for TippmixPro if needed
+        if isinstance(self, TippmixProScraper):
+            converted_url = self.convert_tippmixpro_url(url)
+            if converted_url != url:
+                print(f"URL converted: {url} -> {converted_url}")
+            self.current_url = converted_url
+        else:
+            self.current_url = url
         
         if self.use_selenium:
-            self._open_page_with_selenium(url)
-        else:
-            self._open_page_with_requests(url)
+            self._open_page_with_selenium(self.current_url)
         
         self.is_page_open = True
-    
-    def _open_page_with_requests(self, url):
-        """Open page using requests (for static content)"""
-        try:
-            response = self.session.get(url, timeout=self.timeout)
-            response.raise_for_status()
-            self.current_content = response.text
-        except Exception as e:
-            raise Exception(f"Error opening page with requests: {e}")
     
     def _open_page_with_selenium(self, url):
         """Open page using Selenium (for dynamic content)"""
@@ -100,108 +103,12 @@ class WebScraper:
                     raise Exception("Failed to setup Selenium driver")
             
             self.driver.get(url)
-            time.sleep(2)  # Wait for page to load
+            #time.sleep(2)  # Wait for page to load
+
             self.current_content = self.driver.page_source
             
         except Exception as e:
             raise Exception(f"Error opening page with Selenium: {e}")
-    
-    def refresh_page_content(self):
-        """Refresh the page content from the browser (for dynamic updates)"""
-        if not self.is_page_open:
-            raise Exception("No page is currently open")
-        
-        if self.use_selenium and self.driver:
-            # Get fresh page source from the browser
-            self.current_content = self.driver.page_source
-        else:
-            # For requests-based scraping, make a new request
-            try:
-                response = self.session.get(self.current_url, timeout=self.timeout)
-                response.raise_for_status()
-                self.current_content = response.text
-            except Exception as e:
-                raise Exception(f"Error refreshing page content: {e}")
-    
-
-    
-    def _wait_for_dynamic_elements(self, selectors, timeout=None):
-        """
-        Wait for dynamic elements to appear on the page
-        
-        Args:
-            selectors (list): List of CSS selectors to wait for
-            timeout (int): Maximum time to wait in seconds (uses self.dynamic_wait_timeout if None)
-        """
-        if timeout is None:
-            timeout = self.dynamic_wait_timeout
-        if not self.driver:
-            return
-        
-        try:
-            wait = WebDriverWait(self.driver, timeout)
-            for selector in selectors:
-                try:
-                    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, selector)))
-                except TimeoutException:
-                    print(f"Warning: Selector '{selector}' not found within {timeout} seconds")
-        except Exception as e:
-            print(f"Error waiting for dynamic elements: {e}")
-    
-    def scrape_current_page(self, selectors):
-        """
-        Scrape the currently open page with the given selectors
-        
-        Args:
-            selectors (list): List of CSS selectors to extract
-            
-        Returns:
-            dict: Dictionary with selector as key and extracted data as value
-        """
-        if not self.is_page_open:
-            raise Exception("No page is currently open")
-        
-        # Get fresh page content from the browser to capture dynamic updates
-        if self.use_selenium and self.driver:
-            # Get current page source (includes JavaScript updates)
-            current_content = self.driver.page_source
-        else:
-            # For requests-based scraping, use the stored content
-            current_content = self.current_content
-        
-        # Parse the HTML content
-        soup = BeautifulSoup(current_content, 'html.parser')
-        
-        # Extract data for each selector
-        data = {}
-        for selector in selectors:
-            try:
-                elements = soup.select(selector)
-                if elements:
-                    # Extract text from all matching elements
-                    extracted_data = []
-                    for element in elements:
-                        # Get text content, stripping whitespace
-                        text = element.get_text(strip=True)
-                        if text:
-                            extracted_data.append(text)
-                    
-                    # If we found data, add it to results
-                    if extracted_data:
-                        if len(extracted_data) == 1:
-                            data[selector] = extracted_data[0]
-                        else:
-                            data[selector] = extracted_data
-                    else:
-                        data[selector] = None
-                else:
-                    data[selector] = None
-                    
-            except Exception as e:
-                print(f"Error extracting data for selector '{selector}': {e}")
-                data[selector] = None
-        
-        return data
     
     def close_page(self):
         """Close the currently open page and clean up resources"""
@@ -215,38 +122,119 @@ class WebScraper:
             except:
                 pass
             self.driver = None
+
+class TippmixProScraper(WebScraper):
+    """
+    Custom scraper specifically for TippmixPro website
+    Extracts market titles from .MarketGroupsItem children
+    """
     
-    # Legacy methods for backward compatibility
-    def scrape_page(self, url, selectors):
+    def convert_tippmixpro_url(self, original_url):
         """
-        Legacy method: Scrape a page once (opens and closes the page)
+        Convert TippmixPro URLs from www.tippmixpro.hu to sports2.tippmixpro.hu
+        and remove /i/ from the path to bypass CORS limitations
         
         Args:
-            url (str): The URL to scrape
-            selectors (list): List of CSS selectors to extract
+            original_url (str): Original TippmixPro URL
             
         Returns:
-            dict: Dictionary with selector as key and extracted data as value
+            str: Converted URL for scraping
         """
         try:
-            self.open_page(url)
-            data = self.scrape_current_page(selectors)
-            return data
-        finally:
-            self.close_page()
-    
-    def scrape_specific_elements(self, url, selectors):
+            # Parse the URL
+            if 'www.tippmixpro.hu' in original_url:
+                # Replace www.tippmixpro.hu with sports2.tippmixpro.hu
+                converted_url = original_url.replace('www.tippmixpro.hu', 'sports2.tippmixpro.hu')
+                
+                # Remove /i/ from the path if present
+                if '/i/' in converted_url:
+                    converted_url = converted_url.replace('/i/', '/')
+                if '/elo/' in converted_url:
+                    converted_url = converted_url.replace('/elo/', '/')
+                
+                return converted_url
+            else:
+                # If it's already a sports2 URL or different format, return as is
+                return original_url
+                
+        except Exception as e:
+            print(f"Error converting URL: {e}")
+            return original_url
+
+    def get_market_id(self,article_element):
         """
-        Legacy method: Alias for scrape_page
+        Extracts the market ID from an <article> element's class attribute without regex.
+
+        :param article_element: Selenium WebElement representing the <article>
+        :return: Market ID as string if found, else None
+        """
+        class_attr = article_element.get_attribute("class")
+        if not class_attr:
+            return None
         
-        Args:
-            url (str): The URL to scrape
-            selectors (list): List of CSS selectors to extract
-            
-        Returns:
-            dict: Dictionary with selector as key and extracted data as value
+        for cls in class_attr.split():
+            if cls.startswith("Market--Id-"):
+                return cls.replace("Market--Id-", "")
+        
+        return None
+
+    def get_market_part(self,article_element):
         """
-        return self.scrape_page(url, selectors)
+        Extracts the market part from an <article> element's class attribute without regex.
+
+        :param article_element: Selenium WebElement representing the <article>
+        :return: Market part as string if found, else None
+        """
+        class_attr = article_element.get_attribute("class")
+        if not class_attr:
+            return None
+        
+        for cls in class_attr.split():
+            if cls.startswith("Market--Part-"):
+                return cls.replace("Market--Part-", "")
+        
+        return None
+
+    def scrape_market_titles(self):
+        try:
+            element = WebDriverWait(self.driver, timeout=10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, ".MarketGroupsItem"))
+            )
+
+            bet_list = []
+            articles = element.find_elements(By.CSS_SELECTOR, "article")
+
+            for article in articles:
+                # get legend text safely
+                legend_text = ""
+                try:
+                    legend = article.find_element(By.CSS_SELECTOR, ".Market__Legend")
+                    legend_text = legend.text.strip()
+                except Exception as e:
+                    pass  # skip if no legend
+
+                outcomes = article.find_elements(By.CSS_SELECTOR, ".Market__OddsGroupItem")
+                outcomes_list = []
+
+                for outcome in outcomes:
+                    try:
+                        text = outcome.find_element(By.CSS_SELECTOR, ".OddsButton__Text").text.strip()
+                        odds = outcome.find_element(By.CSS_SELECTOR, ".OddsButton__Odds").text.strip()  
+                        outcomes_list.append({"text": text, "odds": odds})
+                    except Exception as e:
+                        continue  # skip this outcome if one of the children is missing
+                        
+
+                if len(outcomes_list) > 0:
+                    bet_list.append({"market_id": self.get_market_id(article), "market_part": self.get_market_part(article), "legend": legend_text, "outcomes": outcomes_list})
+
+            #print(f"bet_list: {bet_list}")
+            return bet_list
+
+        except TimeoutException as e:
+            print(f"Error in scrape_market_titles: {e}")
+            return None
+
     
     def close(self):
         """Close the scraper and clean up resources"""
