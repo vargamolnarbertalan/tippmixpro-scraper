@@ -1,6 +1,6 @@
 import requests
-import time
 import os
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -42,7 +42,7 @@ class WebScraper:
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-dev-shm-usage")
             chrome_options.add_argument("--disable-gpu")
-            chrome_options.add_argument("--window-size=1920,1080")
+            chrome_options.add_argument("--window-size=1200,900")
             chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
             chrome_options.add_argument("--disable-speech-api")
             chrome_options.add_argument("--disable-speech-synthesis-api")
@@ -161,78 +161,70 @@ class TippmixProScraper(WebScraper):
             print(f"Error converting URL: {e}")
             return original_url
 
-    def get_market_id(self,article_element):
-        """
-        Extracts the market ID from an <article> element's class attribute without regex.
-
-        :param article_element: Selenium WebElement representing the <article>
-        :return: Market ID as string if found, else None
-        """
-        class_attr = article_element.get_attribute("class")
-        if not class_attr:
-            return None
-        
-        for cls in class_attr.split():
+    def get_market_id(self, article_soup):
+        classes = article_soup.get("class", [])
+        for cls in classes:
             if cls.startswith("Market--Id-"):
                 return cls.replace("Market--Id-", "")
-        
         return None
 
-    def get_market_part(self,article_element):
-        """
-        Extracts the market part from an <article> element's class attribute without regex.
-
-        :param article_element: Selenium WebElement representing the <article>
-        :return: Market part as string if found, else None
-        """
-        class_attr = article_element.get_attribute("class")
-        if not class_attr:
-            return None
-        
-        for cls in class_attr.split():
+    def get_market_part(self, article_soup):
+        classes = article_soup.get("class", [])
+        for cls in classes:
             if cls.startswith("Market--Part-"):
                 return cls.replace("Market--Part-", "")
-        
         return None
 
+
     def scrape_market_titles(self):
+        print("-------------Scraping market titles---------")
         try:
+            # wait for the main container
             element = WebDriverWait(self.driver, timeout=10).until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, ".MarketGroupsItem"))
+                EC.presence_of_element_located((By.CSS_SELECTOR, "body"))
             )
 
+            # take a snapshot of the HTML
+            html_snapshot = element.get_attribute("innerHTML")
+            soup = BeautifulSoup(html_snapshot, "html.parser")
+
             bet_list = []
-            articles = element.find_elements(By.CSS_SELECTOR, "article")
+
+            # find all <article> elements in the snapshot
+            articles = soup.select("article")
+            #print(len(articles))
 
             for article in articles:
                 # get legend text safely
-                legend_text = ""
-                try:
-                    legend = article.find_element(By.CSS_SELECTOR, ".Market__Legend")
-                    legend_text = legend.text.strip()
-                except Exception as e:
-                    pass  # skip if no legend
+                legend_tag = article.select_one(".Market__Legend")
+                legend_text = legend_tag.get_text(strip=True) if legend_tag else ""
+                #print(legend_text)
 
-                outcomes = article.find_elements(By.CSS_SELECTOR, ".Market__OddsGroupItem")
                 outcomes_list = []
+                outcome_tags = article.select(".Market__OddsGroupItem")
 
-                for outcome in outcomes:
-                    try:
-                        text = outcome.find_element(By.CSS_SELECTOR, ".OddsButton__Text").text.strip()
-                        odds = outcome.find_element(By.CSS_SELECTOR, ".OddsButton__Odds").text.strip()  
-                        outcomes_list.append({"text": text, "odds": odds})
-                    except Exception as e:
-                        continue  # skip this outcome if one of the children is missing
-                        
+                for outcome in outcome_tags:
+                    text_tag = outcome.select_one(".OddsButton__Text")
+                    odds_tag = outcome.select_one(".OddsButton__Odds")
+                    if text_tag and odds_tag:
+                        outcomes_list.append({
+                            "text": text_tag.get_text(strip=True),
+                            "odds": odds_tag.get_text(strip=True)
+                        })
 
-                if len(outcomes_list) > 0:
-                    bet_list.append({"market_id": self.get_market_id(article), "market_part": self.get_market_part(article), "legend": legend_text, "outcomes": outcomes_list})
+                if outcomes_list:
+                    bet_list.append({
+                        "market_id": self.get_market_id(article),  # will need a BeautifulSoup-compatible version
+                        "market_part": self.get_market_part(article),  # same here
+                        "legend": legend_text,
+                        "outcomes": outcomes_list
+                    })
+                    print(bet_list[-1])
 
-            #print(f"bet_list: {bet_list}")
             return bet_list
 
         except TimeoutException as e:
-            print(f"Error in scrape_market_titles: {e}")
+            print(f"Error in scrape_market_titles_snapshot: {e}")
             return None
 
     

@@ -171,11 +171,6 @@ class ScraperApp:
             self.root.configure(bg=theme['bg'])
             
             # Configure text widgets
-            self.selectors_text.configure(
-                bg=theme['text_bg'],
-                fg=theme['text_fg'],
-                insertbackground=theme['fg']
-            )
             self.log_text.configure(
                 bg=theme['text_bg'],
                 fg=theme['text_fg'],
