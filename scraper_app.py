@@ -80,6 +80,7 @@ class ScraperApp:
         }
         with open(self.settings_file, 'w') as f:
             json.dump(settings, f, indent=2)
+            self.log_message("Settings saved to " + self.settings_file)
     
     def setup_ui(self):
         """Setup the user interface"""
@@ -271,18 +272,6 @@ class ScraperApp:
     
     def scraping_worker(self, interval, output_file):
         """Worker thread for scraping"""
-        # First scrape to get initial content
-        try:
-            data = self.scraper.scrape_market_titles()
-            if data:
-                self.save_data(data, output_file)
-                self.log_message(f"Initial data scraped and saved to {output_file}")
-            else:
-                self.log_message("No market data found")
-        except Exception as e:
-            self.log_message(f"Error during initial scraping: {e}")
-        
-        # Continue scraping from the same page content
         while self.is_scraping:
             try:
                 # Scrape current page (gets fresh content from browser)
@@ -292,7 +281,7 @@ class ScraperApp:
                     self.save_data(data, output_file)
                     self.log_message(f"Data scraped and saved to {output_file}")
                 else:
-                    self.log_message("No market data found")
+                    self.log_message("No betting options found yet...")
                 
                 # Wait for next interval
                 time.sleep(interval)
@@ -320,6 +309,12 @@ class ScraperApp:
         """Validate user inputs"""
         if not self.url_var.get().strip():
             messagebox.showerror("Error", "Please enter a website URL")
+            return False
+        
+        # Validate URL ends with /all or /all/
+        url = self.url_var.get().strip()
+        if not (url.endswith('/all') or url.endswith('/all/')):
+            messagebox.showerror("Error", "URL must end with '/all' or '/all/'")
             return False
         
         try:
@@ -357,6 +352,16 @@ class ScraperApp:
     
     def on_closing(self):
         """Handle application closing"""
+        # Show warning if scraping is active
+        if self.is_scraping:
+            result = messagebox.askyesno(
+                "Confirm Exit", 
+                "Scraping is currently active. Are you sure you want to close the application?"
+            )
+            if not result:
+                return  # User cancelled, don't close
+        
+        # Stop scraping if active
         if self.is_scraping:
             self.stop_scraping()
         elif self.scraper.is_page_open:
