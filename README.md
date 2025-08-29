@@ -19,6 +19,10 @@ This application is designed to scrape live betting markets from TippmixPro.hu, 
 
 ## 🚀 **Installation**
 
+### Download and run the lates `.exe` from releases.
+
+**OR**
+
 ### Prerequisites
 - Python 3.7+
 - Google Chrome browser

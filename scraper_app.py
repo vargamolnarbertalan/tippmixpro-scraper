@@ -4,6 +4,8 @@ from tkinter import ttk, filedialog, messagebox
 import json
 import threading
 import time
+import os
+import sys
 from scraper_core import TippmixProScraper
 
 class ScraperApp:
@@ -13,8 +15,18 @@ class ScraperApp:
         
         # Set window icon if icon.ico exists
         try:
-            self.root.iconbitmap("icon.ico")
-        except:
+            # Try to get icon from PyInstaller bundle first
+            if hasattr(sys, '_MEIPASS'):
+                # Running from PyInstaller bundle
+                icon_path = os.path.join(sys._MEIPASS, "icon.ico")
+            else:
+                # Running from source
+                icon_path = "icon.ico"
+            
+            if os.path.exists(icon_path):
+                self.root.iconbitmap(icon_path)
+        except Exception as e:
+            print(f"Icon loading failed: {e}")
             pass  # Icon file doesn't exist, use default
         self.root.geometry("800x600")
         
