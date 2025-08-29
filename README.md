@@ -1,185 +1,155 @@
-# Web Scraper Application
+# TippmixPro Scraper API by B3RC1
 
-A Python-based web scraping application with a graphical user interface that allows you to scrape websites at regular intervals and save the data to JSON files.
+A specialized Python web scraping application designed specifically for extracting betting market data from TippmixPro.hu. Features a modern GUI with dark/light theme support and real-time data monitoring.
 
-## Features
+## 🎯 **Purpose**
 
-- **Graphical User Interface**: Easy-to-use tkinter-based GUI
-- **Dark/Light Mode**: Switch between dark and light themes for comfortable viewing
-- **Configurable Scraping**: Set custom CSS selectors for data extraction
-- **Keep-Alive Polling**: Opens page once and keeps it open, capturing dynamic content updates at each interval
-- **JSON Output**: Save scraped data in structured JSON format with timestamps
-- **Settings Persistence**: Remember your configuration between app launches
-- **Dual Scraping Methods**: Support for both requests (fast) and Selenium (JavaScript-heavy pages)
-- **Real-time Logging**: Monitor scraping progress in real-time
-- **Error Handling**: Robust error handling and recovery
+This application is designed to scrape live betting markets from TippmixPro.hu, extracting market titles, odds, and outcomes for specific events. It's optimized for the TippmixPro website structure and handles dynamic content updates automatically.
 
-## Installation
+## ✨ **Features**
 
-1. **Clone or download the project files**
+- **🎨 Modern GUI**: Clean tkinter interface with dark/light theme switching
+- **🔄 Keep-Alive Scraping**: Opens page once and monitors for real-time updates
+- **📊 Specialized Data Extraction**: Automatically extracts market titles, odds, and outcomes
+- **💾 Settings Persistence**: Remembers your configuration between sessions
+- **🔒 URL Validation**: Ensures URLs end with `/all` or `/all/` for proper functionality
+- **⚠️ Safety Features**: Confirmation dialog when closing during active scraping
+- **📝 Real-time Logging**: Monitor scraping progress with timestamped logs
+- **🎯 TippmixPro Optimized**: Custom URL conversion and element targeting
 
-2. **Install Python dependencies**:
+## 🚀 **Installation**
+
+### Prerequisites
+- Python 3.7+
+- Google Chrome browser
+
+### Setup
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/vargamolnarbertalan/tippmixpro-scraper.git
+   cd tippmixpro-scraper
+   ```
+
+2. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Install Chrome WebDriver** (only if you plan to use Selenium):
-   - Download ChromeDriver from: https://chromedriver.chromium.org/
-   - Add it to your system PATH or place it in the project directory
+3. **Run the application**:
+   ```bash
+   python scraper_app.py
+   ```
 
-## Usage
+## 📖 **Usage**
 
-### Running the Application
+### Getting Started
 
-```bash
-python scraper_app.py
-```
+1. **Launch the Application**: Run `python scraper_app.py`
+2. **Enter TippmixPro URL**: Must end with `/all` or `/all/`
+   - Example: `https://www.tippmixpro.hu/hu/elo/i/elo-esemenyek/186/coun/vilag/blast-open-fall-closed-qualifier/flyquest-spirit/279204529400057856/all`
+3. **Set Polling Interval**: How often to check for updates (in seconds)
+4. **Choose Output File**: Where to save the JSON data
+5. **Select Theme**: Choose between light and dark mode
+6. **Start Scraping**: Click "Start Scraping" to begin monitoring
+7. **Save settings**: Click "Save Settings" to manually save settings. The app auto-saves settings, if closed gracefully.
 
-### Basic Usage
+### URL Format Requirements
 
-1. **Choose Theme**: Select "light" or "dark" mode from the theme dropdown in the top-right corner
-2. **Enter Website URL**: Enter the URL of the website you want to scrape
-3. **Set Polling Interval**: Choose how often to check for content changes (in seconds)
-4. **Choose Output File**: Select where to save the JSON data
-5. **Configure Selectors**: Enter CSS selectors for the elements you want to extract
-6. **Start Scraping**: Click "Start Scraping" to open the page and begin monitoring
-7. **Save Settings**: Click "Save Settings" to manually save your configuration (optional - settings are automatically saved when closing)
+The application automatically converts TippmixPro URLs:
+- **Input**: `https://www.tippmixpro.hu/hu/elo/i/elo-esemenyek/.../all`
+- **Converted**: `https://sports2.tippmixpro.hu/hu/elo-esemenyek/.../all`
 
-**Note**: Your settings (URL, interval, output file, selectors, and theme preference) are automatically remembered when you restart the application.
+**Important**: URLs must end with `/all` or `/all/` to be accepted.
 
-**How it works**: The scraper opens the page once when you start, then gets fresh page content from the browser at each interval to capture dynamic updates (WebSockets, AJAX, etc.). This ensures you get the latest data without needing to refresh the entire page.
+### Output Data Structure
 
-### CSS Selectors Examples
-
-The application uses CSS selectors to identify elements on the webpage:
-
-- `#header` - Selects element with ID "header"
-- `.title` - Selects elements with class "title"
-- `h1` - Selects all h1 elements
-- `div.content p` - Selects paragraph elements inside div with class "content"
-- `a[href*="example"]` - Selects links containing "example" in href
-
-### Output Format
-
-The scraped data is saved in JSON format with timestamps. **Note**: The file is overwritten at each polling interval, so it will always contain only the most recent scraped data:
+The application extracts betting market data in this format:
 
 ```json
 {
-  "timestamp": "2024-01-15T10:30:00.123456",
-  "data": {
-    "#header": [
-      {
-        "text": "Website Title",
-        "attributes": {"id": "header", "class": "main-header"},
-        "tag": "div"
-      }
-    ],
-    ".content": [
-      {
-        "text": "Article content here",
-        "attributes": {"class": "content"},
-        "tag": "div"
-      }
-    ]
-  }
+  "timestamp": "2025-09-27 14:30:25",
+  "data": [
+    {
+      "market_id": "12345",
+      "market_part": "1",
+      "legend": "Match Winner",
+      "outcomes": [
+        {
+          "text": "Team A",
+          "odds": "1.85"
+        },
+        {
+          "text": "Team B", 
+          "odds": "2.10"
+        }
+      ]
+    }
+  ]
 }
 ```
 
-## Advanced Usage
+### Data Fields Explained
 
-### Settings Persistence
+- **`market_id`**: Unique identifier for the betting market
+- **`market_part`**: Part number of the market (such as map 2 round 2)
+- **`legend`**: The betting market title/description
+- **`outcomes`**: Array of possible outcomes with their odds
 
-The application automatically saves your configuration to `scraper_settings.json` when you close the app. This file contains:
+## ⚙️ **Configuration**
+
+### Settings File
+
+Settings are automatically saved to `scraper_settings.json`:
 
 ```json
 {
-  "url": "https://example.com",
-  "interval": 60,
+  "url": "https://www.tippmixpro.hu/hu/elo/i/elo-esemenyek/.../all",
+  "interval": 1,
   "output_file": "scraped_data.json",
-  "selectors": [
-    "#header",
-    ".content",
-    "h1"
-  ],
-  "theme": "light",
-  "refresh_content": false
+  "theme": "dark"
 }
 ```
 
-You can also manually save settings at any time using the "Save Settings" button.
+### Theme Options
 
-### Using Selenium for JavaScript-heavy Pages
+- **Light Theme**: Clean, bright interface
+- **Dark Theme**: Easy on the eyes for extended use
 
-If you need to scrape websites that heavily rely on JavaScript, you can modify the scraper to use Selenium:
 
-```python
-# In scraper_app.py, modify the WebScraper initialization:
-self.scraper = WebScraper(use_selenium=True)
-```
+## 🛠️ **Troubleshooting**
 
-### Custom Scraping Logic
 
-You can extend the `scraper_core.py` file to add custom scraping logic:
+1. **"URL must end with '/all' or '/all/'"**
+   - Ensure your TippmixPro URL ends correctly
+   - Example: `https://www.tippmixpro.hu/.../all`
 
-```python
-# Example: Custom scraping method
-def scrape_custom_data(self, url):
-    # Your custom scraping logic here
-    pass
-```
+2. **"No betting options found yet..."**
+   - The page may still be loading
+   - Check if the URL is correct and accessible
+   - Wait for the page to fully load
 
-## File Structure
+### Browser Requirements
 
-```
-tippmixpro-scraper/
-├── scraper_app.py          # Main GUI application
-├── scraper_core.py         # Core scraping functionality
-├── requirements.txt        # Python dependencies
-├── README.md              # This file
-├── scraper_settings.json  # Settings file (created automatically)
-└── scraped_data.json      # Output file (created when scraping)
-```
+- **Chrome**: Latest version recommended
 
-## Dependencies
+## 🔒 **Safety Features**
 
-- **tkinter**: GUI framework (included with Python)
-- **requests**: HTTP library for web requests
-- **beautifulsoup4**: HTML parsing library
-- **selenium**: Web automation (optional, for JavaScript-heavy pages)
-- **lxml**: XML/HTML parser
+- **URL Validation**: Prevents invalid URLs from being processed
+- **Close Confirmation**: Warns when closing during active scraping
+- **Error Recovery**: Graceful handling of network and parsing errors
+- **Resource Cleanup**: Proper browser cleanup on exit
 
-## Troubleshooting
+## 📝 **Logging**
 
-### Common Issues
+The application provides real-time logging:
+- **Timestamped entries**: All actions are logged with timestamps
+- **Error reporting**: Detailed error messages for troubleshooting
+- **Progress tracking**: Shows scraping status
 
-1. **"No module named 'requests'"**: Install dependencies with `pip install -r requirements.txt`
 
-2. **ChromeDriver not found**: Download ChromeDriver and add to PATH, or place in project directory
+## 📄 **License**
 
-3. **Permission errors**: Run the application with appropriate permissions
-
-4. **Website blocking requests**: Some websites may block automated requests. Try:
-   - Using Selenium instead of requests
-   - Adding delays between requests
-   - Using different User-Agent headers
-
-### Error Messages
-
-- **"Error fetching URL"**: Check if the URL is accessible and correct
-- **"No elements found for selector"**: Verify your CSS selectors are correct
-- **"Timeout error"**: Increase timeout value or check internet connection
-
-## Contributing
-
-Feel free to contribute to this project by:
-- Reporting bugs
-- Suggesting new features
-- Submitting pull requests
-
-## License
-
-This project is open source and available under the MIT License.
-
-## Disclaimer
-
-Please ensure you comply with the website's terms of service and robots.txt file when scraping. This tool is for educational and legitimate data collection purposes only.
+This software is not open source. You are not permitted to use, distribute, or modify this software without prior written permission and payment to the creator.
+To use this software, you must purchase a license.
+For licensing inquiries, please contact: [vargamolnarb@gmail.com].
+Unauthorized use is strictly prohibited and may result in legal action.
