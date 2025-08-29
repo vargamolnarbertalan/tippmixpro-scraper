@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import json
@@ -26,7 +27,7 @@ class ScraperApp:
         self.settings_file = "scraper_settings.json"
         
         # Theme configuration
-        self.current_theme = "light"
+        self.current_theme = "dark"
         self.themes = {
             "light": {
                 "bg": "#f0f0f0",
@@ -63,10 +64,10 @@ class ScraperApp:
         try:
             with open(self.settings_file, 'r') as f:
                 settings = json.load(f)
-                self.url_var.set(settings.get('url', ''))
-                self.interval_var.set(settings.get('interval', '30'))
-                self.output_file_var.set(settings.get('output_file', 'scraped_data.json'))
-                self.current_theme = settings.get('theme', 'light')
+                self.url_var.set(settings.get('url', 'Valid TippmixPro url ending with /all'))
+                self.interval_var.set(settings.get('interval', '1'))
+                self.output_file_var.set(settings.get('output_file', os.path.join(os.path.dirname(__file__), "TippmixPro_API_output.json")))
+                self.current_theme = settings.get('theme', 'dark')
         except FileNotFoundError:
             pass
     
@@ -85,10 +86,10 @@ class ScraperApp:
     def setup_ui(self):
         """Setup the user interface"""
         # Variables
-        self.url_var = tk.StringVar()
-        self.interval_var = tk.StringVar(value="30")
-        self.output_file_var = tk.StringVar(value="scraped_data.json")
-        self.theme_var = tk.StringVar(value=self.current_theme)
+        self.url_var = tk.StringVar(value="Valid TippmixPro url ending with /all")
+        self.interval_var = tk.StringVar(value="1")
+        self.output_file_var = tk.StringVar(value=os.path.join(os.path.dirname(__file__), "TippmixPro_API_output.json"))
+        self.theme_var = tk.StringVar(value="dark")
         
         # Main frame
         main_frame = ttk.Frame(self.root, padding="10")
@@ -315,6 +316,10 @@ class ScraperApp:
         url = self.url_var.get().strip()
         if not (url.endswith('/all') or url.endswith('/all/')):
             messagebox.showerror("Error", "URL must end with '/all' or '/all/'")
+            return False
+
+        if not (url.startswith('https://tippmixpro') or url.startswith('https://www.tippmixpro')):
+            messagebox.showerror("Error", "URL must be a valid TippmixPro url.")
             return False
         
         try:
